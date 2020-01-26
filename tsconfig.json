@@ -1,0 +1,29 @@
+{
+    "compilerOptions": {
+        "allowSyntheticDefaultImports": true,
+        "declaration": false,
+        "emitDecoratorMetadata": true,
+        "esModuleInterop": true,
+        "experimentalDecorators": true,
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "noFallthroughCasesInSwitch": false,
+        "noImplicitAny": true,
+        "noImplicitReturns": false,
+        "noImplicitThis": true,
+        "noUnusedLocals": false,
+        "noUnusedParameters": false,
+        "outDir": "dist",
+        "removeComments": true,
+        "resolveJsonModule": true,
+        "sourceMap": false,
+        "strictNullChecks": false,
+        "skipLibCheck": true,
+        "target": "es2018",
+    },
+    "compileOnSave": true,
+    "include": [
+        "test/**/*",
+        "app/**/*"
+    ]
+}

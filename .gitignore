@@ -1,0 +1,6 @@
+app
+build
+dist
+migrations_null
+node_modules
+yarn-error.log
