@@ -1,0 +1,23 @@
+{
+  "name": "1keth",
+  "version": "1.0.0",
+  "description": "Online Canvas Powered By Ethereum",
+  "main": "truffle-config.js",
+  "scripts": {
+    "generate": "truffle compile && typechain --target truffle --outDir app/contracts build/**/*.json",
+    "test": "tsc && truffle test --migrations_directory migrations_null ./dist/*"
+  },
+  "author": "david@fant.io",
+  "devDependencies": {
+    "@types/chai": "^4.2.7",
+    "@types/chai-as-promised": "^7.1.2",
+    "@types/web3": "^1.2.2",
+    "chai": "^4.2.0",
+    "chai-as-promised": "^7.1.1",
+    "truffle": "^5.1.9",
+    "truffle-typings": "^1.0.8",
+    "typechain": "^1.0.3",
+    "typechain-target-truffle": "^1.0.2",
+    "typescript": "^3.7.5"
+  }
+}
