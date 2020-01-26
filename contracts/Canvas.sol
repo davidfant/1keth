@@ -9,13 +9,13 @@ contract Canvas {
     uint256 public width;
     uint256 public height;
     uint256 public pricePerPixel;
-    address public owner;
+    // This will be assigned at contract creation
+    address public owner = msg.sender;
 
     constructor(uint256 _width, uint256 _height, uint256 _pricePerPixel) public {
         width = _width;
         height = _height;
         pricePerPixel = _pricePerPixel;
-        owner = msg.sender;
     }
 
     struct Pixel {
@@ -62,5 +62,20 @@ contract Canvas {
         uint256 price = newPixels * pricePerPixel;
         require(msg.value >= price, "Insufficient ether");
         msg.sender.transfer(msg.value - price);
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Sender not authorized.");
+        // "_;" will be replaced by the actual fucntion body when the modifier is used.
+        _;
+    }
+
+    // https://solidity.readthedocs.io/en/v0.4.24/common-patterns.html#restricting-access
+    function withdraw(uint256 amount) public onlyOwner returns (bool) {
+        uint256 balance = address(this).balance;
+        require(amount <= balance, "Insufficient funds");
+        msg.sender.transfer(amount);
+        return true;
+
     }
 }

@@ -179,4 +179,40 @@ contract('Canvas', ([owner, buyer]) => {
 
     });
 
+    describe('withdraw', () => {
+
+        describe('fail', () => {
+
+            it('should fail if non-owner tries to withdraw', async () => {
+                const promise = canvas.withdraw(toWei(1), { from: buyer });
+                await expect(promise).to.eventually.be.rejectedWith('Sender not authorized');
+            });
+
+            it('should fail if trying to withdraw more than the current balance', async () => {
+                const promise = canvas.withdraw(toWei(1), { from: owner });
+                await expect(promise).to.eventually.be.rejectedWith('Insufficient funds');
+            });
+
+        });
+
+        describe('success', () => {
+
+            it('should fail if owner tries to withdraw the current balance', async () => {
+                await canvas.buyPixels(
+                    [{ x: 0, y: 0, color: 0xff0033 }],
+                    'https://fant.io',
+                    { value: toWei(pricePerPixel) },
+                );
+
+                const balanceBefore = await web3.eth.getBalance(canvas.address).then(toEth);
+                const withdrawAmount = 0.0001;
+                await canvas.withdraw(toWei(withdrawAmount), { from: owner });
+                const balanceAfter = await web3.eth.getBalance(canvas.address).then(toEth);
+                assert.equal(balanceBefore, balanceAfter + withdrawAmount);
+            });
+
+        });
+
+    });
+
 });
