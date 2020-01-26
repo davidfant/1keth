@@ -20,12 +20,6 @@ interface Pixel {
     exists: boolean;
 }
 
-interface PixelInput {
-    x: number;
-    y: number;
-    color: number;
-}
-
 contract('Canvas', ([owner, buyer]) => {
 
     const width = 1000;
@@ -48,7 +42,9 @@ contract('Canvas', ([owner, buyer]) => {
 
     describe('buyPixels', () => {
 
-        const input: PixelInput = { x: width / 2, y: height / 2, color: 0xff0033 };
+        const x = width / 2;
+        const y = height / 2;
+        const color = 0xff0033;
         const url = 'https://fant.io';
         const value = toWei(pricePerPixel);
 
@@ -59,50 +55,55 @@ contract('Canvas', ([owner, buyer]) => {
 
         describe('fail', () => {
 
-            it('should fail if no pixels provided', async () => {
-                const promise = canvas.buyPixels([], url, { value });
-                await expect(promise).to.eventually.be.rejectedWith('No pixels provided');
+            it('should fail if x0 > x1', async () => {
+                const promise = canvas.buyPixels(1, 0, 0, 0, [color], url, { value });
+                await expect(promise).to.eventually.be.rejectedWith('Pixel range is invalid');
+            });
+
+            it('should fail if y0 > y1', async () => {
+                const promise = canvas.buyPixels(0, 1, 0, 0, [color], url, { value });
+                await expect(promise).to.eventually.be.rejectedWith('Pixel range is invalid');
             });
 
             it('should fail if coordinate is negative', async () => {
-                const promise = canvas.buyPixels([{ ...input, x: - 1}], url, { value });
-                await expect(promise).to.eventually.be.rejectedWith('Pixel is out of bounds');
+                const promise = canvas.buyPixels(-1, y, -1, y, [color], url, { value });
+                await expect(promise).to.eventually.be.rejectedWith('Pixel range is out of bounds');
             });
     
             it('should fail if pixel value is too big', async () => {
-                const promise = canvas.buyPixels([{ ...input, x: width + 1 }], url, { value });
-                await expect(promise).to.eventually.be.rejectedWith('Pixel is out of bounds');
+                const promise = canvas.buyPixels(width, y, width, y, [color], url, { value });
+                await expect(promise).to.eventually.be.rejectedWith('Pixel range is out of bounds');
             });
     
             it('should fail if color is invalid', async () => {
-                const promise = canvas.buyPixels([{ ...input, color: 0xffffffff }], url, { value });
+                const promise = canvas.buyPixels(x, y, x, y, [0x12345678], url, { value });
                 await expect(promise).to.eventually.be.rejectedWith('Color is invalid');
             });
     
             it('should fail if insufficient funds were paid', async () => {
-                const promise = canvas.buyPixels([input], url, { value: toWei(0) });
+                const promise = canvas.buyPixels(x, y, x, y, [color], url, { value: toWei(0) });
                 await expect(promise).to.eventually.be.rejectedWith('Insufficient ether');
             });
     
             it('should fail if pixel is already purchased', async () => {
-                await canvas.buyPixels([input], url, { value });
-                const promise = canvas.buyPixels([input], url, { value, from: buyer });
+                await canvas.buyPixels(x, y, x, y, [color], url, { value });
+                const promise = canvas.buyPixels(x, y, x, y, [color], url, { value, from: buyer });
                 await expect(promise).to.eventually.be.rejectedWith('Pixel already purchased');
             });
 
             describe('multiple', () => {
 
                 it('should fail if one of multiple pixels fails', async () => {
-                    const validInput = input;
-                    const invalidInput: PixelInput = { ...validInput, x: -1 };
-                    const promise = canvas.buyPixels([validInput, invalidInput], url, { value });
-                    await expect(promise).to.eventually.be.rejectedWith('Pixel is out of bounds');
+                    const validColor = color;
+                    const invalidColor = 0x12345678;
+                    const promise = canvas.buyPixels(x, y, x + 1, y, [validColor, invalidColor], url, { value });
+                    await expect(promise).to.eventually.be.rejectedWith('Color is invalid');
 
                     const balance = await web3.eth.getBalance(canvas.address).then(toEth);
                     assert.equal(balance, 0);
 
-                    const validPixel: Pixel = await canvas.pixels(validInput.x, validInput.y) as any;
-                    const invalidPixel: Pixel = await canvas.pixels(invalidInput.x, invalidInput.y) as any;
+                    const validPixel: Pixel = await canvas.pixels(x, y) as any;
+                    const invalidPixel: Pixel = await canvas.pixels(x + 1, y) as any;
                     assert.isFalse(validPixel.exists);
                     assert.isFalse(invalidPixel.exists);
                 });
@@ -114,63 +115,52 @@ contract('Canvas', ([owner, buyer]) => {
         describe('success', () => {
             
             it('should register pixel', async () => {
-                await canvas.buyPixels([input], url, { value, from: buyer });
-                const pixel: Pixel = await canvas.pixels(input.x, input.y) as any;
+                await canvas.buyPixels(x, y, x, y, [color], url, { value, from: buyer });
+                const pixel: Pixel = await canvas.pixels(x, y) as any;
                 assert.isTrue(pixel.exists);
-                assert.equal(pixel.x.toNumber(), input.x);
-                assert.equal(pixel.y.toNumber(), input.y);
+                assert.equal(pixel.x.toNumber(), x);
+                assert.equal(pixel.y.toNumber(), y);
                 assert.equal(pixel.url, url);
-                assert.equal(pixel.color.toNumber(), input.color);
+                assert.equal(pixel.color.toNumber(), color);
                 assert.equal(pixel.owner, buyer);
             });
 
             it('should add balance to the contract', async () => {
                 // const balanceBefore = await web3.eth.getBalance(buyer).then(toEth);
-                await canvas.buyPixels([input], url, { value });
+                await canvas.buyPixels(x, y, x, y, [color], url, { value });
                 // const balanceAfter = await web3.eth.getBalance(buyer).then(toEth);
                 const balance = await web3.eth.getBalance(canvas.address).then(toEth);
                 assert.equal(balance, pricePerPixel);
             });
             
             it('should send back excess ether', async () => {
-                await canvas.buyPixels([input], url, { value: toWei(pricePerPixel * 2) });
+                await canvas.buyPixels(x, y, x, y, [color], url, { value: toWei(pricePerPixel * 2) });
                 const balance = await web3.eth.getBalance(canvas.address).then(toEth);
                 assert.equal(balance, pricePerPixel);
             });
 
             it('should allow updating pixels', async () => {
                 const updatedColor = 0x133337;
-                await canvas.buyPixels([input], url, { value, from: buyer });
-                await canvas.buyPixels([{ ...input, color: updatedColor }], url, { value, from: buyer });
+                await canvas.buyPixels(x, y, x, y, [color], url, { value, from: buyer });
+                await canvas.buyPixels(x, y, x, y, [updatedColor], url, { value, from: buyer });
                 // only increase the balance once, not for the update
                 const balance = await web3.eth.getBalance(canvas.address).then(toEth);
                 assert.equal(balance, pricePerPixel);
 
-                const pixel: Pixel = await canvas.pixels(input.x, input.y) as any;
+                const pixel: Pixel = await canvas.pixels(x, y) as any;
                 assert.equal(pixel.color.toNumber(), updatedColor);
             });
 
             describe('multiple', () => {
 
                 it('should register multiple pixels', async () => {
-                    const inputs: PixelInput[] = [
-                        { x: 0, y: 0, color: 0xff0033 },
-                        { x: 1, y: 0, color: 0xff0033 },
-                    ];
-
-                    await canvas.buyPixels(inputs, url, { value: toWei(pricePerPixel * 2) });
-                    const pixels: Pixel[] = await Promise.all(inputs.map((i) => canvas.pixels(i.x, i.y) as any));
+                    await canvas.buyPixels(0, 0, 1, 0, [color, color], url, { value: toWei(pricePerPixel * 2) });
+                    const pixels: Pixel[] = await Promise.all([canvas.pixels(0, 0), canvas.pixels(1, 0)] as any[]);
                     assert.isTrue(pixels[0].exists);
                     assert.isTrue(pixels[1].exists);
 
                     const balance = await web3.eth.getBalance(canvas.address).then(toEth);
                     assert.equal(balance, pricePerPixel * 2);
-                });
-                
-                it('should not charge twice when sending a duplicate pixel', async () => {
-                    await canvas.buyPixels([input, input], url, { value: toWei(pricePerPixel * 2) });
-                    const balance = await web3.eth.getBalance(canvas.address).then(toEth);
-                    assert.equal(balance, pricePerPixel);
                 });
 
             });
@@ -198,11 +188,7 @@ contract('Canvas', ([owner, buyer]) => {
         describe('success', () => {
 
             it('should fail if owner tries to withdraw the current balance', async () => {
-                await canvas.buyPixels(
-                    [{ x: 0, y: 0, color: 0xff0033 }],
-                    'https://fant.io',
-                    { value: toWei(pricePerPixel) },
-                );
+                await canvas.buyPixels(0, 0, 0, 0, [0xff0033], 'https://fant.io', { value: toWei(pricePerPixel) });
 
                 const balanceBefore = await web3.eth.getBalance(canvas.address).then(toEth);
                 const withdrawAmount = 0.0001;

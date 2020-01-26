@@ -1,5 +1,4 @@
-pragma solidity ^0.5.0;
-pragma experimental ABIEncoderV2;
+pragma solidity ^0.6.1;
 
 contract Canvas {
 
@@ -27,39 +26,53 @@ contract Canvas {
         bool exists;
     }
 
-    struct PixelInput {
-        uint256 x;
-        uint256 y;
-        uint32 color;
-    }
+    function buyPixels(
+        uint256 x0, uint256 y0,
+        uint256 x1, uint256 y1,
+        uint32[] memory colors,
+        string memory url
+    ) public payable {
+        // We assume that the pixel range input comes in in the correct order
+        require(x0 <= x1 && y0 <= y1, "Pixel range is invalid");
+        require(0 <= x0 && x1 < width && 0 <= y0 && y1 < height, "Pixel range is out of bounds");
 
-    function buyPixels(PixelInput[] memory inputs, string memory url) public payable {
-        require(inputs.length > 0, "No pixels provided");
+        uint256 cols = x1 - x0 + 1;
+        uint256 rows = y1 - y0 + 1;
+        require(colors.length == cols * rows, "Number of colors is invalid");
 
-        uint256 newPixels = 0;
-
-        for (uint i = 0; i < inputs.length; i++) {
-            PixelInput memory p = inputs[i];
-            Pixel memory pixel = pixels[p.x][p.y];
-            require(0 <= p.x && p.x < width && 0 <= p.y && p.y < height, "Pixel is out of bounds");
-            require(0x000000 <= p.color && p.color <= 0xffffff, "Color is invalid");
-            require(!pixel.exists || pixel.owner == msg.sender, "Pixel already purchased");
-
-            if (!pixel.exists) {
-                newPixels++;
-            }
-
-            pixels[p.x][p.y] = Pixel({
-                x: p.x,
-                y: p.y,
-                url: url,
-                color: p.color,
-                owner: msg.sender,
-                exists: true
-            });
+        for (uint256 i = 0; i < colors.length; i++) {
+            require(0x000000 <= colors[i] && colors[i] <= 0xffffff, "Color is invalid");
         }
 
-        uint256 price = newPixels * pricePerPixel;
+        uint256 numNewPixels = 0;
+
+        for (uint256 row = 0; row < rows; row++) {
+            uint256 y = y0 + row;
+            for (uint256 col = 0; col < cols; col++) {
+                uint256 x = x0 + col;
+                // Colors should be sorted like [[x0, y0], [x1, y0], ..., [xn-1, yn], [xn, yn]]
+                uint256 colorIndex = col + row * cols;
+                uint32 color = colors[colorIndex];
+
+                Pixel memory pixel = pixels[x][y];
+                require(!pixel.exists || pixel.owner == msg.sender, "Pixel already purchased");
+
+                if (!pixel.exists) {
+                    numNewPixels++;
+                }
+
+                pixels[x][y] = Pixel({
+                    x: x,
+                    y: y,
+                    url: url,
+                    color: color,
+                    owner: msg.sender,
+                    exists: true
+                });
+            }
+        }
+
+        uint256 price = numNewPixels * pricePerPixel;
         require(msg.value >= price, "Insufficient ether");
         msg.sender.transfer(msg.value - price);
     }
@@ -76,6 +89,5 @@ contract Canvas {
         require(amount <= balance, "Insufficient funds");
         msg.sender.transfer(amount);
         return true;
-
     }
 }
